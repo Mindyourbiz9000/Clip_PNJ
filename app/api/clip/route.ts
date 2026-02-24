@@ -105,7 +105,10 @@ export async function POST(req: NextRequest) {
     const stat = statSync(outputPath);
     const nodeStream = createReadStream(outputPath);
 
-    // Convert Node readable stream to Web ReadableStream
+    // Convert Node readable stream to Web ReadableStream.
+    // Cleanup is tied to stream lifecycle so the file is not deleted
+    // before the client finishes downloading.
+    const filePath = outputPath;
     const webStream = new ReadableStream({
       start(controller) {
         nodeStream.on("data", (chunk) => {
@@ -113,13 +116,16 @@ export async function POST(req: NextRequest) {
         });
         nodeStream.on("end", () => {
           controller.close();
+          safeUnlink(filePath);
         });
         nodeStream.on("error", (err) => {
           controller.error(err);
+          safeUnlink(filePath);
         });
       },
       cancel() {
         nodeStream.destroy();
+        safeUnlink(filePath);
       },
     });
 
@@ -139,9 +145,7 @@ export async function POST(req: NextRequest) {
     return jsonError(`Processing failed: ${msg}`, 500);
   } finally {
     clipSemaphore.release();
-    // Clean up temp file after a brief delay to allow streaming to complete
-    if (outputPath) {
-      setTimeout(() => safeUnlink(outputPath!), 5000);
-    }
+    // Note: temp file cleanup is handled by stream event handlers above.
+    // If FFmpeg failed (outputPath is null) there is nothing to clean up.
   }
 }
