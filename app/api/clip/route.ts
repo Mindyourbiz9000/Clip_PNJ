@@ -111,8 +111,9 @@ export async function POST(req: NextRequest) {
     const filePath = outputPath;
     const webStream = new ReadableStream({
       start(controller) {
-        nodeStream.on("data", (chunk) => {
-          controller.enqueue(new Uint8Array(chunk as Buffer));
+        nodeStream.on("data", (chunk: string | Buffer) => {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          controller.enqueue(new Uint8Array(buf));
         });
         nodeStream.on("end", () => {
           controller.close();
