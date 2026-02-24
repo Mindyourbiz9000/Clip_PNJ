@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { createReadStream, statSync } from "node:fs";
-import { Readable } from "node:stream";
 import { validateUrl } from "@/lib/validateUrl";
 import { computeDuration } from "@/lib/time";
 import { clipSemaphore } from "@/lib/semaphore";
@@ -109,8 +108,8 @@ export async function POST(req: NextRequest) {
     // Convert Node readable stream to Web ReadableStream
     const webStream = new ReadableStream({
       start(controller) {
-        nodeStream.on("data", (chunk: Buffer) => {
-          controller.enqueue(new Uint8Array(chunk));
+        nodeStream.on("data", (chunk) => {
+          controller.enqueue(new Uint8Array(chunk as Buffer));
         });
         nodeStream.on("end", () => {
           controller.close();
